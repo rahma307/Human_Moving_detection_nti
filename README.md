@@ -1,122 +1,443 @@
 # Human Activity Recognition Using Smartphones
 
-A university machine learning project that builds a supervised multiclass
-classifier predicting one of six human activities — Walking, Walking Upstairs,
-Walking Downstairs, Sitting, Standing, Laying — from smartphone accelerometer
-and gyroscope sensor features.
+A supervised multiclass machine learning project that predicts human physical activities using smartphone accelerometer and gyroscope sensor features.
 
-Dataset: [UCI Human Activity Recognition Using Smartphones](https://archive.ics.uci.edu/dataset/240/human+activity+recognition+using+smartphones)
-(Reyes-Ortiz, Anguita, Ghio, Oneto & Parra, 2013; CC BY 4.0).
+## 📌 Project Overview
 
-## Project Structure
+This project builds a machine learning pipeline for **Human Activity Recognition (HAR)** using the UCI Human Activity Recognition Using Smartphones dataset.
 
+The goal is to classify each observation into one of six human activities based on engineered smartphone sensor features:
+
+* 🚶 Walking
+* ⬆️ Walking Upstairs
+* ⬇️ Walking Downstairs
+* 🪑 Sitting
+* 🧍 Standing
+* 🛏️ Laying
+
+The project covers the complete machine learning workflow, including:
+
+* Dataset understanding and validation
+* Exploratory Data Analysis (EDA)
+* Data preprocessing
+* Feature scaling
+* Multiple machine learning models
+* Model comparison
+* PCA dimensionality analysis
+* Feature importance
+* Error analysis
+* Hyperparameter tuning
+* Final model evaluation
+* Artifact generation for the Streamlit dashboard
+
+---
+
+## 📊 Dataset
+
+The project uses the **UCI Human Activity Recognition Using Smartphones Dataset**.
+
+Dataset source:
+
+https://archive.ics.uci.edu/dataset/240/human+activity+recognition+using+smartphones
+
+### Dataset Characteristics
+
+| Property           |        Value |
+| ------------------ | -----------: |
+| Subjects           |           30 |
+| Activities         |            6 |
+| Features           |          561 |
+| Sampling Frequency |        50 Hz |
+| Window Size        | 2.56 seconds |
+| Window Overlap     |          50% |
+| Training Samples   |        7,352 |
+| Testing Samples    |        2,947 |
+
+The data was collected from 30 volunteers aged 19–48 using a **Samsung Galaxy S II** smartphone mounted on the waist.
+
+The smartphone recorded:
+
+* 3-axis linear acceleration
+* 3-axis angular velocity
+
+The original UCI train/test split is preserved:
+
+* **21 subjects → training**
+* **9 subjects → testing**
+
+The split is performed by subject to avoid leakage between training and testing data.
+
+---
+
+## 🧠 Features
+
+The dataset contains **561 engineered features** derived from time-domain and frequency-domain sensor signals.
+
+Examples include:
+
+* Mean
+* Standard deviation
+* Minimum and maximum values
+* Signal energy
+* Correlations between axes
+* Frequency-domain / FFT-based features
+* Body acceleration features
+* Gravity acceleration features
+* Gyroscope features
+* Magnitude-based features
+
+Each row represents a statistical summary of a **2.56-second sensor window**, rather than raw sensor readings.
+
+---
+
+## 🔍 Exploratory Data Analysis
+
+The notebook performs several EDA steps to understand the dataset, including:
+
+* Class distribution analysis
+* Feature distribution visualization
+* Selected meaningful feature analysis
+* Correlation analysis
+* Investigation of relationships between sensor features and activities
+
+The six classes are reasonably balanced, so accuracy is a meaningful evaluation metric. Precision, recall, and macro F1-score are also reported to provide a more complete evaluation.
+
+---
+
+## ⚙️ Preprocessing
+
+The feature matrix is standardized using `StandardScaler`.
+
+The scaler is fitted **only on the training data**:
+
+```python
+scaler = StandardScaler()
+
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
 ```
-.
-├── HAR_Project.ipynb        # Main notebook: EDA -> models -> PCA -> tuning -> final evaluation
-├── app.py                   # Streamlit dashboard (loads artifacts, no retraining)
-├── data/                    # Official UCI HAR train/test data
-│   ├── activity_labels.txt
+
+This prevents information from the test set from leaking into the training process.
+
+No random row-level train/test split is performed because observations from the same subject can be highly correlated.
+
+---
+
+## 🤖 Machine Learning Models
+
+Five classical machine learning algorithms are trained and compared:
+
+1. Logistic Regression
+2. K-Nearest Neighbors (KNN)
+3. Decision Tree
+4. Random Forest
+5. Support Vector Machine (SVM)
+
+Each model is evaluated using:
+
+* Accuracy
+* Macro Precision
+* Macro Recall
+* Macro F1-score
+* Confusion Matrix
+
+### Model Performance
+
+The baseline comparison produced approximately:
+
+| Model               |   Accuracy |
+| ------------------- | ---------: |
+| Logistic Regression | **95.49%** |
+| SVM                 | **95.18%** |
+| Random Forest       |     92.74% |
+| KNN                 |     88.36% |
+| Decision Tree       |     86.22% |
+
+The exact values are generated from the notebook's `comparison_df`.
+
+---
+
+## 📉 PCA Analysis
+
+Principal Component Analysis (PCA) is used to investigate the redundancy and structure of the 561-dimensional feature space.
+
+Two PCA analyses are performed:
+
+1. Cumulative explained variance
+2. Two-dimensional PCA visualization
+
+The 2D projection shows a clear separation between:
+
+* **Dynamic activities:** Walking, Walking Upstairs, Walking Downstairs
+* **Static activities:** Sitting, Standing, Laying
+
+However, activities within the same group overlap more strongly, particularly Sitting vs. Standing and the three walking activities.
+
+---
+
+## 🌲 Feature Importance
+
+Random Forest feature importance is used to identify the engineered features that contribute most to classification.
+
+Important features are mainly related to:
+
+* Gravity orientation
+* Body acceleration magnitude
+* Motion energy
+* Time-domain acceleration statistics
+* Frequency-domain acceleration statistics
+
+These features are physically meaningful because they capture both body orientation and movement intensity.
+
+---
+
+## 🔎 Error Analysis
+
+The confusion matrix is used to investigate classification errors.
+
+The main difficult distinction is:
+
+**Sitting ↔ Standing**
+
+These activities produce very similar low-motion sensor signals and phone orientations.
+
+Some confusion also occurs between:
+
+* Walking
+* Walking Upstairs
+* Walking Downstairs
+
+because these activities share similar gait patterns.
+
+Laying is generally easier to distinguish because its gravity orientation differs substantially from the other activities.
+
+---
+
+## 🎯 Hyperparameter Tuning
+
+The most promising models are further optimized using `GridSearchCV`.
+
+### SVM
+
+The following parameters are explored:
+
+```python
+C = [1, 10]
+gamma = ["scale", 0.01]
+```
+
+### Random Forest
+
+The following parameters are explored:
+
+```python
+n_estimators = [200, 300]
+max_depth = [None, 30]
+```
+
+Three-fold cross-validation is performed **using the training set only**.
+
+The tuned model with the best cross-validation accuracy is selected as the final model.
+
+---
+
+## 🏆 Final Evaluation
+
+After model selection and hyperparameter tuning, the final model is evaluated once on the untouched test set.
+
+The final evaluation reports:
+
+* Accuracy
+* Macro Precision
+* Macro Recall
+* Macro F1-score
+* Classification Report
+* Confusion Matrix
+
+The final test set is not used during hyperparameter tuning.
+
+This provides an unbiased estimate of the model's performance on unseen subjects.
+
+---
+
+## 📁 Project Structure
+
+A typical project structure is:
+
+```text
+Human-Activity-Recognition/
+│
+├── data/
+│   ├── train/
+│   ├── test/
 │   ├── features.txt
-│   ├── features_info.txt
-│   ├── train/  (X_train.txt, y_train.txt, subject_train.txt)
-│   └── test/   (X_test.txt, y_test.txt, subject_test.txt)
-├── artifacts/                # Generated by the notebook, consumed by the dashboard
+│   └── activity_labels.txt
+│
+├── artifacts/
 │   ├── scaler.joblib
 │   ├── final_model.joblib
 │   ├── final_model_name.joblib
 │   ├── all_models.joblib
 │   ├── model_comparison.csv
+│   ├── sample_test_X.csv
+│   ├── sample_test_y.csv
 │   ├── activity_distribution.csv
 │   ├── final_confusion_matrix.csv
-│   ├── pca_2d.csv
-│   ├── sample_test_X.csv
-│   └── sample_test_y.csv
-├── requirements.txt
+│   └── pca_2d.csv
+│
+├── HAR_Project.ipynb
+├── app.py
 └── README.md
 ```
 
-## How to Run
+> The exact dashboard filename should match the Streamlit application file in the project repository.
 
-1. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+---
 
-2. **Run the notebook** (trains all models and writes `artifacts/`)
-   ```bash
-   jupyter notebook HAR_Project.ipynb
-   # or, to run end-to-end from the command line:
-   jupyter nbconvert --to notebook --execute --output HAR_Project.ipynb HAR_Project.ipynb
-   ```
+## 💾 Dashboard Artifacts
 
-3. **Launch the dashboard** (after the notebook has produced `artifacts/`)
-   ```bash
-   streamlit run app.py
-   ```
+The notebook exports trained models and analysis results to the `artifacts/` directory so that the dashboard can display results without retraining the models.
 
-## Dataset Summary
+Generated artifacts include:
 
-- 30 subjects performed 6 activities wearing a waist-mounted Samsung Galaxy S II.
-- Accelerometer + gyroscope signals sampled at 50 Hz, windowed into 2.56-second
-  segments (128 readings, 50% overlap).
-- 561 statistical/time-domain/frequency-domain features engineered per window.
-- **Official split** (used as-is, not re-randomized): 7352 training windows
-  (21 subjects) / 2947 test windows (9 subjects), split by subject to prevent
-  leakage.
+| Artifact                     | Purpose                      |
+| ---------------------------- | ---------------------------- |
+| `scaler.joblib`              | Fitted feature scaler        |
+| `final_model.joblib`         | Selected final trained model |
+| `final_model_name.joblib`    | Name of the final model      |
+| `all_models.joblib`          | All trained baseline models  |
+| `model_comparison.csv`       | Model performance comparison |
+| `sample_test_X.csv`          | Sample test features         |
+| `sample_test_y.csv`          | Sample test labels           |
+| `activity_distribution.csv`  | Activity distribution        |
+| `final_confusion_matrix.csv` | Final confusion matrix       |
+| `pca_2d.csv`                 | PCA visualization data       |
 
-## Methodology
+The dashboard loads these artifacts instead of retraining the models.
 
-1. **Dataset understanding** — what the sensors, target, and features represent.
-2. **Data loading** — official UCI train/test text files, feature names
-   de-duplicated (561 names include 84 duplicates in the original file).
-3. **Data validation** — shape, dtypes, missing values, duplicates, infinite
-   values, constant features, class balance.
-4. **EDA** — activity distribution, selected feature distributions/boxplots,
-   correlation heatmap over a meaningful feature subset.
-5. **Preprocessing** — `StandardScaler` fit on training data only.
-6. **Models** — Logistic Regression, KNN, Decision Tree, Random Forest, SVM;
-   accuracy/precision/recall/F1 (macro) + confusion matrix for each.
-7. **Model comparison** — ranked table, best model identified.
-8. **PCA** — explained variance curve, 2D projection colored by activity.
-9. **Feature importance** — top 15 Random Forest features.
-10. **Error analysis** — most-confused activity pairs, lowest-recall classes.
-11. **Hyperparameter tuning** — `GridSearchCV` (cross-validation on train only)
-    for the top two models (SVM, Random Forest).
-12. **Final evaluation** — the tuned model evaluated exactly once on the
-    untouched test set.
-13. **Streamlit dashboard** — project overview, dataset info, activity
-    distribution, model comparison, confusion matrix, PCA plot, and a live
-    prediction demo using sampled test rows (no manual 561-field entry).
+---
 
-## Results (this run)
+## 🖥️ Dashboard
 
-| Model | Accuracy | Precision | Recall | F1-score |
-|---|---|---|---|---|
-| Logistic Regression | 0.9549 | 0.9576 | 0.9534 | 0.9546 |
-| SVM | 0.9518 | 0.9525 | 0.9504 | 0.9511 |
-| Random Forest | 0.9274 | 0.9282 | 0.9245 | 0.9256 |
-| KNN | 0.8836 | 0.8917 | 0.8785 | 0.8805 |
-| Decision Tree | 0.8622 | 0.8625 | 0.8587 | 0.8595 |
+The project includes a dashboard that summarizes the machine learning workflow and results.
 
-Final tuned model (selected by cross-validated training accuracy, then
-evaluated once on the test set): **SVM (tuned)**. See the notebook's Section 12
-for exact final test-set metrics — small variations from the table above are
-expected after hyperparameter tuning.
+The dashboard presents information such as:
 
-**Key finding:** the dominant error mode across all models is confusing
-`SITTING` with `STANDING` — both are static, upright postures that are hard to
-separate from short accelerometer/gyroscope windows. Dynamic (walking) vs.
-static activities are separated very reliably, which is also visible in the
-2D PCA projection.
+* Project description
+* Dataset statistics
+* Number of features
+* Number of activities
+* Number of subjects
+* Sample test-set features
+* Model performance
+* PCA analysis
+* Feature importance
+* Final evaluation
+* Confusion matrix
 
-## Notes on the Workflow
+The dashboard is intended for **visualization and demonstration**; the complete modeling pipeline is implemented in `HAR_Project.ipynb`.
 
-- The official UCI train/test split (by subject) is used throughout instead of
-  a random re-split, to avoid leaking near-duplicate windows from the same
-  subject across train and test.
-- `StandardScaler` is fit on the training set only and applied to test data,
-  to avoid preprocessing-stage leakage.
-- Hyperparameter tuning uses cross-validation on the training set only; the
-  test set is touched exactly once, in the final evaluation step.
-- No rows or columns are deleted without explanation (see the Data Validation
-  section of the notebook for the reasoning behind each check).
+---
+
+## 🚀 How to Run
+
+### 1. Clone the repository
+
+```bash
+git clone <repository-url>
+cd Human-Activity-Recognition
+```
+
+### 2. Install the required libraries
+
+```bash
+pip install numpy pandas matplotlib seaborn scikit-learn joblib jupyter streamlit
+```
+
+### 3. Run the notebook
+
+Open:
+
+```bash
+jupyter notebook HAR_Project.ipynb
+```
+
+Run the notebook from top to bottom.
+
+This will:
+
+1. Load the dataset
+2. Validate the data
+3. Perform EDA
+4. Preprocess the features
+5. Train the models
+6. Compare the models
+7. Perform PCA
+8. Analyze feature importance
+9. Perform error analysis
+10. Tune the best models
+11. Evaluate the final model
+12. Generate the dashboard artifacts
+
+### 4. Run the dashboard
+
+If the Streamlit application is named `app.py`:
+
+```bash
+streamlit run app.py
+```
+
+---
+
+## 📈 Key Findings
+
+The project shows that the engineered smartphone sensor features are highly informative for human activity recognition.
+
+Key findings include:
+
+* Classical machine learning models can achieve around **95% accuracy** on this dataset.
+* Logistic Regression and SVM perform particularly well with the 561 engineered features.
+* PCA reveals substantial redundancy in the feature space.
+* Two PCA components already provide a useful visual separation between static and dynamic activities.
+* Random Forest feature importance highlights gravity orientation and movement-energy features.
+* The main classification challenge is distinguishing **Sitting from Standing**.
+* Walking activities can also be confused with one another because of their similar motion patterns.
+* Hyperparameter tuning provides an additional improvement over default model configurations.
+
+---
+
+## 🛠️ Technologies Used
+
+* Python
+* NumPy
+* Pandas
+* Matplotlib
+* Seaborn
+* Scikit-learn
+* Joblib
+* Jupyter Notebook
+* Streamlit
+
+---
+
+## 📚 References
+
+**UCI Machine Learning Repository**
+
+Human Activity Recognition Using Smartphones Dataset:
+
+https://archive.ics.uci.edu/dataset/240/human+activity+recognition+using+smartphones
+
+---
+
+## 👩‍💻 Project Type
+
+**Machine Learning — Multiclass Classification**
+
+**Task:** Human Activity Recognition
+
+**Input:** Smartphone accelerometer and gyroscope features
+
+**Output:** One of six human activity classes
+
+**Models:** Logistic Regression, KNN, Decision Tree, Random Forest, SVM
